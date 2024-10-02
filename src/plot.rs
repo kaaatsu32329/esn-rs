@@ -7,12 +7,7 @@ pub mod plotter {
         ys: Vec<Vec<f64>>,
         label: Vec<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let x_ = x.iter().map(|v| *v as f32).collect::<Vec<_>>();
-
-        let ys = ys
-            .iter()
-            .map(|v| v.iter().map(|v| *v as f32).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
+        let ys = ys.iter().map(|v| v.to_vec()).collect::<Vec<_>>();
 
         let width = 1280;
         let height = 720;
@@ -21,7 +16,7 @@ pub mod plotter {
 
         root.fill(&WHITE)?;
 
-        let (y_min, y_max) = ys.iter().fold((f32::NAN, f32::NAN), |(m, n), v| {
+        let (y_min, y_max) = ys.iter().fold((f64::NAN, f64::NAN), |(m, n), v| {
             (
                 v.iter().fold(m, |m, n| n.min(m)),
                 v.iter().fold(n, |m, n| n.max(m)),
@@ -50,7 +45,7 @@ pub mod plotter {
                 .y_label_area_size(42)
                 .build_cartesian_2d(
                     (*x.first().unwrap() - 0.1)..(*x.last().unwrap() + 0.1),
-                    0f32..(y_max + 0.1),
+                    0f64..(y_max + 0.1),
                 )?;
         }
 
@@ -58,7 +53,7 @@ pub mod plotter {
 
         let mut line_series = vec![];
 
-        let color = vec![
+        let color = [
             RGBColor(0, 0, 255),
             RGBColor(255, 0, 0),
             RGBColor(0, 255, 0),
@@ -76,16 +71,14 @@ pub mod plotter {
         ];
 
         for (i, (y, l)) in ys.iter().zip(label.iter()).enumerate() {
-            let line = LineSeries::new(
-                x.iter().zip(y.iter()).map(|(x, y)| (*x, *y)),
-                color[i % 14].clone(),
-            )
-            .point_size(2);
+            let line =
+                LineSeries::new(x.iter().zip(y.iter()).map(|(x, y)| (*x, *y)), color[i % 14])
+                    .point_size(4);
             line_series.push((line, l));
         }
 
         for (line, l) in line_series {
-            chart.draw_series(line)?;
+            chart.draw_series(line)?.label(l);
         }
 
         Ok(())

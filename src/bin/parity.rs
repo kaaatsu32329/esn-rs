@@ -7,19 +7,19 @@ use rand::prelude::*;
 fn main() {
     env_logger::init();
 
-    log::debug!("Start XOR example...");
-    let step = 50;
+    log::debug!("Start parity example...");
+    let step = 100;
 
-    let n_x = 20;
+    let n_x = 50;
 
-    let (train_input, train_expected_output) = data_gen(step, 41);
+    let (train_input, train_expected_output) = data_gen(step, 1);
 
     log::debug!("Set up Echo State Network...");
     let mut model = EchoStateNetwork::new(
         train_input.nrows() as u64,
         train_expected_output.nrows() as u64,
         n_x,
-        0.1,
+        0.05,
         1.0,
         0.9,
         |x| x.tanh(),
@@ -35,7 +35,7 @@ fn main() {
     log::debug!("Train Echo State Network...");
     model.train(&train_input, &train_expected_output, &mut optimizer);
 
-    let (test_input, test_expected_output) = data_gen(step, 91);
+    let (test_input, test_expected_output) = data_gen(step, 2);
 
     let predicted_output = model.predict(&test_input);
 
@@ -60,7 +60,7 @@ fn main() {
     let y_expected = test_expected_output.iter().copied().collect::<Vec<f64>>();
 
     plotter::plot(
-        "XOR",
+        "parity",
         (0..step).map(|v| v as f64).collect::<Vec<f64>>(),
         vec![
             y_expected,
@@ -77,21 +77,12 @@ fn main() {
 
     model.debug_print();
     optimizer.debug_print();
-    log::debug!("End XOR example...");
-
-    output_serde(
-        model,
-        optimizer,
-        &train_input,
-        &train_expected_output,
-        &test_input,
-        &test_expected_output,
-        predicted_output,
-    );
+    log::debug!("End parity example...");
 }
 
 fn data_gen(step: usize, seed: u64) -> (na::DMatrix<f64>, na::DMatrix<f64>) {
-    let tau = 2;
+    let tau = 4;
+    let bits = 3;
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 
@@ -100,8 +91,9 @@ fn data_gen(step: usize, seed: u64) -> (na::DMatrix<f64>, na::DMatrix<f64>) {
         .collect::<Vec<f64>>();
 
     let mut output_vec = vec![0.0; step];
-    for n in tau..step {
-        output_vec[n] = ((input_vec[n - 1] as u32) ^ (input_vec[n - 2] as u32)) as f64;
+    for n in (tau + bits - 1)..step {
+        let bits_sum = input_vec[n - tau] + input_vec[n - tau + 1] + input_vec[n - tau + 2];
+        output_vec[n] = bits_sum % 2_f64;
     }
 
     let train_input_mat = na::DMatrix::from_column_slice(1, step, &input_vec);

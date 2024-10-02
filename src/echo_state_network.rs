@@ -9,9 +9,9 @@ pub struct EchoStateNetwork {
     reservoir: Reservoir,
     output: Output,
 
-    n_u: u64,
-    n_y: u64,
-    n_x: u64,
+    _n_u: u64,
+    _n_y: u64,
+    _n_x: u64,
     previous_y: na::DVector<f64>,
     output_function: fn(&na::DVector<f64>) -> na::DVector<f64>,
     inverse_output_function: fn(&na::DVector<f64>) -> na::DVector<f64>,
@@ -22,6 +22,7 @@ pub struct EchoStateNetwork {
 }
 
 impl EchoStateNetwork {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         n_u: u64,
         n_y: u64,
@@ -40,10 +41,10 @@ impl EchoStateNetwork {
         EchoStateNetwork {
             input: Input::new(n_u, n_x, input_scale),
             reservoir: Reservoir::new(n_x, density, rho, activation, leaking_rate, None),
-            output: Output::new(n_x, n_y),
-            n_u,
-            n_y,
-            n_x,
+            output: Output::new(n_y, n_x),
+            _n_u: n_u,
+            _n_y: n_y,
+            _n_x: n_x,
             previous_y: na::DVector::zeros(n_y as usize),
             output_function,
             inverse_output_function,
@@ -71,7 +72,9 @@ impl EchoStateNetwork {
                 x_in += x_fdb;
             }
 
-            // TODO: Add noise
+            if self.is_noisy {
+                todo!()
+            }
 
             let x_res = self.reservoir.call(x_in);
 
@@ -85,8 +88,8 @@ impl EchoStateNetwork {
             optimizer.call(&x_res, &d);
 
             let y = self.output.call(&x_res);
-            y_log.push(y.clone());
-            self.previous_y = y.clone();
+            y_log.push((self.output_function)(&y));
+            self.previous_y = d.clone();
         }
 
         self.output
@@ -161,7 +164,7 @@ impl EchoStateNetwork {
         let mut output_weight_abs_mean = vec![];
 
         for n in 0..data_length {
-            let mut x_in = self.input.call(&input.column(n).clone_owned());
+            let x_in = self.input.call(&input.column(n).clone_owned());
             let x_res = self.reservoir.call(x_in);
             let d = output.column(n).clone_owned();
             let d = (self.inverse_output_function)(&d);
@@ -175,5 +178,35 @@ impl EchoStateNetwork {
         }
 
         (y_log, output_weight_abs_mean)
+    }
+
+    pub fn debug_print(&self) {
+        self.input.debug_print();
+        self.reservoir.debug_print();
+        self.output.debug_print();
+        if let Some(fdb) = self.feedback.clone() {
+            fdb.debug_print();
+        }
+    }
+
+    pub fn serde_json(&self) -> serde_json::Result<String> {
+        let input = serde_json::to_string(&self.input)?;
+        let reservoir = serde_json::to_string(&self.reservoir)?;
+        let output = serde_json::to_string(&self.output)?;
+        let feedback = if let Some(fdb) = self.feedback.clone() {
+            serde_json::to_string(&fdb)?
+        } else {
+            "null".to_string()
+        };
+        let json = format!(
+            r#"{{
+            "input": {},
+            "reservoir": {},
+            "output": {},
+            "feedback": {}
+            }}"#,
+            input, reservoir, output, feedback
+        );
+        Ok(json)
     }
 }
