@@ -1,0 +1,15 @@
+[package]
+name = "echo-state-network"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nalgebra = "0.33"
+rand = "0.8"
+petgraph = "0.6"
+petgraph-gen = "0.1"
+plotters = "0.3"
+
+[[bin]]
+name = "xor"
+path = "src/bin/xor.rs"
