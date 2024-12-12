@@ -1,11 +1,9 @@
 mod feedback;
 mod input;
 mod output;
-mod regularization;
 mod reservoir;
 
-pub use feedback::*;
-pub use input::*;
-pub use output::*;
-pub use regularization::*;
-pub use reservoir::*;
+pub(crate) use feedback::*;
+pub(crate) use input::*;
+pub(crate) use output::*;
+pub(crate) use reservoir::*;

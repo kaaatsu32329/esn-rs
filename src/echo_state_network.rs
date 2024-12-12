@@ -8,15 +8,12 @@ pub struct EchoStateNetwork {
     input: Input,
     reservoir: Reservoir,
     output: Output,
-
-    _n_u: u64,
-    _n_y: u64,
-    _n_x: u64,
     previous_y: na::DVector<f64>,
     output_function: fn(&na::DVector<f64>) -> na::DVector<f64>,
     inverse_output_function: fn(&na::DVector<f64>) -> na::DVector<f64>,
     is_classification: bool,
-
+    n_y: u64,
+    n_u: u64,
     feedback: Option<Feedback>,
     is_noisy: bool,
 }
@@ -42,13 +39,12 @@ impl EchoStateNetwork {
             input: Input::new(n_u, n_x, input_scale),
             reservoir: Reservoir::new(n_x, density, rho, activation, leaking_rate, None),
             output: Output::new(n_y, n_x),
-            _n_u: n_u,
-            _n_y: n_y,
-            _n_x: n_x,
             previous_y: na::DVector::zeros(n_y as usize),
             output_function,
             inverse_output_function,
             is_classification,
+            n_y,
+            n_u,
             feedback: feedback_scale.map(|scale| Feedback::new(n_y, n_x, scale)),
             is_noisy: noise_level.is_some(),
         }
@@ -56,11 +52,31 @@ impl EchoStateNetwork {
 
     pub fn train(
         &mut self,
-        teaching_input: &na::DMatrix<f64>,
-        teaching_output: &na::DMatrix<f64>,
-        optimizer: &mut Regularization,
-    ) -> Vec<na::DVector<f64>> {
-        let train_length = teaching_input.ncols();
+        teaching_input: &[Vec<f64>],
+        teaching_output: &[Vec<f64>],
+        optimizer: &mut Ridge,
+    ) -> Vec<Vec<f64>> {
+        let train_length = teaching_input.len();
+        let input_elements = teaching_input
+            .iter()
+            .flatten()
+            .cloned()
+            .collect::<Vec<f64>>();
+        let teaching_input = na::DMatrix::from_column_slice(
+            self.n_u as usize,
+            train_length,
+            input_elements.as_slice(),
+        );
+        let output_elements = teaching_output
+            .iter()
+            .flatten()
+            .cloned()
+            .collect::<Vec<f64>>();
+        let teaching_output = na::DMatrix::from_column_slice(
+            self.n_y as usize,
+            train_length,
+            output_elements.as_slice(),
+        );
 
         let mut y_log = vec![];
 
@@ -68,7 +84,7 @@ impl EchoStateNetwork {
             let mut x_in = self.input.call(&teaching_input.column(n).clone_owned());
 
             if let Some(fdb) = self.feedback.clone() {
-                let x_fdb = fdb.call(&self.previous_y);
+                let x_fdb = fdb.give_feedback(&self.previous_y);
                 x_in += x_fdb;
             }
 
@@ -85,21 +101,28 @@ impl EchoStateNetwork {
             let d = teaching_output.column(n).clone_owned();
             let d = (self.inverse_output_function)(&d);
 
-            optimizer.call(&x_res, &d);
+            optimizer.set_data(&x_res, &d);
 
             let y = self.output.call(&x_res);
-            y_log.push((self.output_function)(&y));
+            let output = (self.output_function)(&y);
+            y_log.push(output.as_slice().to_vec());
             self.previous_y = d.clone();
         }
 
-        self.output
-            .set_weight(optimizer.get_output_weight_optimized());
+        let output_weight = optimizer.fit();
+        self.output.set_weight(output_weight);
 
         y_log
     }
 
-    pub fn predict(&mut self, input: &na::DMatrix<f64>) -> Vec<na::DVector<f64>> {
-        let test_length = input.ncols();
+    pub fn estimate(&mut self, input: &[Vec<f64>]) -> Vec<Vec<f64>> {
+        let test_length = input.len();
+        let input_elements = input.iter().flatten().cloned().collect::<Vec<f64>>();
+        let input = na::DMatrix::from_column_slice(
+            self.n_u as usize,
+            test_length,
+            input_elements.as_slice(),
+        );
 
         let mut y_log = vec![];
 
@@ -107,7 +130,7 @@ impl EchoStateNetwork {
             let mut x_in = self.input.call(&input.column(n).clone_owned());
 
             if let Some(fdb) = self.feedback.clone() {
-                let x_fdb = fdb.call(&self.previous_y);
+                let x_fdb = fdb.give_feedback(&self.previous_y);
                 x_in += x_fdb;
             }
 
@@ -117,76 +140,14 @@ impl EchoStateNetwork {
                 todo!()
             }
 
-            let y_predicted = self.output.call(&x_res);
-            y_log.push((self.output_function)(&y_predicted));
+            let y_estimated = self.output.call(&x_res);
+            let y_estimated = (self.output_function)(&y_estimated);
+            y_log.push(y_estimated.as_slice().to_vec());
 
-            self.previous_y = y_predicted;
+            self.previous_y = y_estimated;
         }
 
         y_log
-    }
-
-    pub fn run(&mut self, input: &na::DMatrix<f64>) -> Vec<na::DVector<f64>> {
-        let test_length = input.ncols();
-
-        let mut y_log = vec![];
-
-        let mut y = input.column(0).clone_owned();
-
-        for _ in 0..test_length {
-            let x_in = self.input.call(&y.clone_owned());
-
-            if let Some(fdb) = self.feedback.clone() {
-                let x_fdb = fdb.call(&self.previous_y);
-                y += x_fdb;
-            }
-
-            let x_res = self.reservoir.call(x_in);
-
-            let y_predicted = self.output.call(&x_res);
-            y_log.push((self.output_function)(&y_predicted));
-            y = y_predicted;
-            self.previous_y = y.clone();
-        }
-
-        y_log
-    }
-
-    pub fn adapt(
-        &mut self,
-        input: &na::DMatrix<f64>,
-        output: &na::DMatrix<f64>,
-        optimizer: &mut Regularization,
-    ) -> (Vec<na::DVector<f64>>, Vec<f64>) {
-        let data_length = input.ncols();
-
-        let mut y_log = vec![];
-        let mut output_weight_abs_mean = vec![];
-
-        for n in 0..data_length {
-            let x_in = self.input.call(&input.column(n).clone_owned());
-            let x_res = self.reservoir.call(x_in);
-            let d = output.column(n).clone_owned();
-            let d = (self.inverse_output_function)(&d);
-
-            optimizer.call(&x_res, &d);
-            let output_weight = optimizer.get_output_weight_optimized();
-
-            let y = output_weight.clone_owned() * x_res;
-            y_log.push(y.clone());
-            output_weight_abs_mean.push(output_weight.abs().mean());
-        }
-
-        (y_log, output_weight_abs_mean)
-    }
-
-    pub fn debug_print(&self) {
-        self.input.debug_print();
-        self.reservoir.debug_print();
-        self.output.debug_print();
-        if let Some(fdb) = self.feedback.clone() {
-            fdb.debug_print();
-        }
     }
 
     pub fn serde_json(&self) -> serde_json::Result<String> {

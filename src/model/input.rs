@@ -4,8 +4,8 @@ use rand_distr::Uniform;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Input {
-    w_input: na::DMatrix<f64>,
+pub(crate) struct Input {
+    weight: na::DMatrix<f64>,
 }
 
 impl Input {
@@ -18,17 +18,18 @@ impl Input {
             .map(|_| uniform.sample(&mut thread_rng()))
             .collect::<Vec<f64>>();
 
-        let w_input = na::DMatrix::from_vec(n_x as usize, n_u as usize, elements);
+        let weight = na::DMatrix::from_vec(n_x as usize, n_u as usize, elements);
 
-        log::debug!("Input weight: {:5.2}", w_input);
-        Input { w_input }
+        Input { weight }
     }
 
     pub fn call(&self, u: &na::DVector<f64>) -> na::DVector<f64> {
-        self.w_input.clone() * u
+        self.weight.clone() * u
     }
+}
 
-    pub fn debug_print(&self) {
-        log::debug!("Input weight: {:5.2}", self.w_input);
+impl std::fmt::Display for Input {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Input weight:\n{:5.2}", self.weight)
     }
 }
