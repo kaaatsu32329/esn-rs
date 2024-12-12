@@ -29,14 +29,14 @@ impl PhysicalReservoir {
         self.expected_log.push(expected.to_vec());
     }
 
-    pub fn offline_train(&mut self, optimizer: &mut Regularization) {
+    pub fn offline_train(&mut self, optimizer: &mut Ridge) {
         for (res, expected) in self.reservoir_log.iter().zip(self.expected_log.iter()) {
             let x = na::DVector::from_vec(res.clone());
             let d = na::DVector::from_vec(expected.clone());
-            optimizer.call(&x, &d);
+            optimizer.set_data(&x, &d);
         }
 
-        let weight = optimizer.get_output_weight_optimized();
+        let weight = optimizer.fit();
         self.output.set_weight(weight);
     }
 

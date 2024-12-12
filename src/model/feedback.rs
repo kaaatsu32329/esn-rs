@@ -3,8 +3,8 @@ use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Feedback {
-    w_feedback: na::DMatrix<f64>,
+pub(crate) struct Feedback {
+    weight: na::DMatrix<f64>,
 }
 
 impl Feedback {
@@ -14,25 +14,18 @@ impl Feedback {
             .map(|_| thread_rng().gen_range(-feedback_scale..feedback_scale))
             .collect::<Vec<f64>>();
 
-        let w_feedback = na::DMatrix::from_vec(n_x as usize, n_y as usize, elements);
+        let weight = na::DMatrix::from_vec(n_x as usize, n_y as usize, elements);
 
-        log::debug!("Feedback weight: {:5.2}", w_feedback);
-        Feedback { w_feedback }
+        Feedback { weight }
     }
 
-    pub fn call(&self, y: &na::DVector<f64>) -> na::DVector<f64> {
-        self.w_feedback.clone() * y
+    pub fn give_feedback(&self, y: &na::DVector<f64>) -> na::DVector<f64> {
+        self.weight.clone() * y
     }
+}
 
-    pub fn feedback_weight(&self) -> &na::DMatrix<f64> {
-        &self.w_feedback
-    }
-
-    pub fn set_weight(&mut self, weight: na::DMatrix<f64>) {
-        self.w_feedback = weight;
-    }
-
-    pub fn debug_print(&self) {
-        log::debug!("Feedback weight: {:5.2}", self.w_feedback);
+impl std::fmt::Display for Feedback {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Feedback: {:?}", self.weight)
     }
 }

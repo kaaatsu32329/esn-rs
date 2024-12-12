@@ -1,17 +1,28 @@
+#[cfg(feature = "plot")]
 pub mod plotter {
     use plotters::prelude::*;
 
+    /// Plot the graph of the given data.
+    /// 'name' is the name of the file.
+    /// 'x' is the x-axis data.
+    /// 'ys' is the y-axis data.
+    /// 'label' is the label of the data.
+    /// 'path' is the path to save the graph.
     pub fn plot(
         name: &str,
         x: Vec<f64>,
         ys: Vec<Vec<f64>>,
         label: Vec<String>,
+        path: Option<&str>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let ys = ys.iter().map(|v| v.to_vec()).collect::<Vec<_>>();
 
         let width = 1280;
         let height = 720;
-        let path = format!("{}{}{}", "./graph/", name, ".png");
+        let path = match path {
+            Some(p) => format!("{}/{}.png", p, name),
+            None => format!("./graph/{}.png", name),
+        };
         let root = BitMapBackend::new(&path, (width, height)).into_drawing_area();
 
         root.fill(&WHITE)?;
