@@ -1,7 +1,10 @@
 [package]
 name = "echo-state-network"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
+license = "MIT"
+description = "A Rust library for Echo State Networks"
+repository = "https://github.com/kaaatsu32329/esn-rs"
 
 [features]
 default = ["plot"]
