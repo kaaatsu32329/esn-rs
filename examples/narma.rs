@@ -41,13 +41,15 @@ fn main() {
         |x| x.clone_owned(),
         |x| x.clone_owned(),
         false,
+        BETA,
     );
 
-    let mut optimizer = Ridge::new(N_X, n_y, BETA);
+    model.offline_train(&train_input, &train_expected_output);
 
-    model.train(&train_input, &train_expected_output, &mut optimizer);
-
-    let estimated_output = model.estimate(&test_input);
+    let mut estimated_output = vec![];
+    for input in test_input.iter() {
+        estimated_output.push(model.estimate(input));
+    }
 
     let (l2_error, l1_error) = get_error_rate(
         estimated_output.clone(),

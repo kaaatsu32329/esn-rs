@@ -32,13 +32,15 @@ fn main() {
         |x| x.clone_owned(),
         |x| x.clone_owned(),
         false,
+        BETA,
     );
 
-    let mut optimizer = Ridge::new(N_X, n_y, BETA);
+    model.offline_train(&train_input, &train_expected_output);
 
-    model.train(&train_input, &train_expected_output, &mut optimizer);
-
-    let estimated_output = model.estimate(&test_input);
+    let mut estimated_output = vec![];
+    for input in test_input.iter() {
+        estimated_output.push(model.estimate(input));
+    }
 
     let (bits_l2_error, bits_l1_error) =
         get_bits_error_rate(estimated_output.clone(), test_expected_output.clone(), 2);
@@ -67,7 +69,6 @@ fn main() {
 
     write_as_serde(
         model,
-        optimizer,
         &train_input,
         &train_expected_output,
         &test_input,
