@@ -5,7 +5,6 @@ use crate::*;
 #[allow(clippy::too_many_arguments)]
 pub fn write_as_serde(
     model: EchoStateNetwork,
-    optimizer: Ridge,
     train_input: &Vec<Vec<f64>>,
     train_expected_output: &Vec<Vec<f64>>,
     test_input: &Vec<Vec<f64>>,
@@ -14,7 +13,6 @@ pub fn write_as_serde(
     path: Option<&str>,
 ) {
     let model_json = model.serde_json().unwrap();
-    let optimizer_json = serde_json::to_string(&optimizer).unwrap();
     let train_input_log = format!("{:?}", train_input);
     let train_expected_output_log = format!("{:?}", train_expected_output);
     let test_input_log = format!("{:?}", test_input);
@@ -22,9 +20,8 @@ pub fn write_as_serde(
     let test_estimated_output_log = format!("{:?}", test_estimated_output);
 
     let output = format!(
-        r#"{{"model":{},"optimizer":{},"train_input":{},"train_expected_output":{},"test_input":{},"test_expected_output":{},"test_estimated_output":{}}}"#,
+        r#"{{"model":{},"train_input":{},"train_expected_output":{},"test_input":{},"test_expected_output":{},"test_estimated_output":{}}}"#,
         model_json,
-        optimizer_json,
         train_input_log,
         train_expected_output_log,
         test_input_log,
