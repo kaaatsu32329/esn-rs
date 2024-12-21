@@ -1,6 +1,8 @@
+mod deep_esn;
 mod echo_state_network;
 mod physical_reservoir;
 
+pub use deep_esn::*;
 pub use echo_state_network::*;
 pub use physical_reservoir::*;
 
