@@ -17,6 +17,19 @@ impl PhysicalReservoir {
         }
     }
 
+    /// Create a new PhysicalReservoir with parameters.
+    /// n_y: The number of output nodes.
+    /// n_x: The number of input(sensor) nodes.
+    /// rls_param: Parameters for RLS. (forgetting_factor, regularization_parameter)
+    /// ridge_param: Parameter for Ridge regression. Regularization parameter.
+    pub fn new_with_param(n_y: u64, n_x: u64, rls_param: (f64, f64), ridge_param: f64) -> Self {
+        PhysicalReservoir {
+            output: Output::new(n_y, n_x),
+            rls: Some(RLS::new(n_x, n_y, rls_param.0, rls_param.1)),
+            ridge: Some(Ridge::new(n_x, n_y, ridge_param)),
+        }
+    }
+
     pub fn readout_weight(&self) -> &na::DMatrix<f64> {
         self.output.output_weight()
     }
