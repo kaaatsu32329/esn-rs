@@ -39,32 +39,29 @@ impl ReservoirComputing for PhysicalReservoir {
     /// Online training method.
     /// teaching_input: Input data for training. In this case, it is a sensor data from the physical reservoir.
     fn train(&mut self, teaching_input: &[f64], teaching_output: &[f64]) {
-        match &mut self.rls {
-            Some(rls) => {
-                let x = na::DVector::from_vec(teaching_input.to_vec());
-                let d = na::DVector::from_vec(teaching_output.to_vec());
-                rls.set_data(&x, &d);
-                let weight = rls.fit();
-                self.output.set_weight(weight);
-            }
-            None => panic!("RLS is not initialized"),
+        if self.rls.is_none() {
+            panic!("RLS is not initialized");
         }
+        let x = na::DVector::from_vec(teaching_input.to_vec());
+        let d = na::DVector::from_vec(teaching_output.to_vec());
+        self.rls.as_mut().unwrap().set_data(&x, &d);
+        let weight = self.rls.as_mut().unwrap().fit();
+        self.output.set_weight(weight);
     }
 
     fn offline_train(&mut self, teaching_input: &[Vec<f64>], teaching_output: &[Vec<f64>]) {
-        match &mut self.ridge {
-            Some(ridge) => {
-                for (input, output) in teaching_input.iter().zip(teaching_output.iter()) {
-                    let x = na::DVector::from_vec(input.clone());
-                    let d = na::DVector::from_vec(output.clone());
-                    ridge.set_data(&x, &d);
-                }
-
-                let weight = ridge.fit();
-                self.output.set_weight(weight);
-            }
-            None => panic!("Ridge is not initialized"),
+        if self.ridge.is_none() {
+            panic!("Ridge is not initialized");
         }
+
+        for (input, output) in teaching_input.iter().zip(teaching_output.iter()) {
+            let x = na::DVector::from_vec(input.clone());
+            let d = na::DVector::from_vec(output.clone());
+            self.ridge.as_mut().unwrap().set_data(&x, &d);
+        }
+
+        let weight = self.ridge.as_mut().unwrap().fit();
+        self.output.set_weight(weight);
     }
 
     /// Estimate method.
@@ -73,5 +70,30 @@ impl ReservoirComputing for PhysicalReservoir {
         let x = na::DVector::from_vec(input.to_vec());
         let output = self.output.call(&x);
         output.data.as_slice().to_vec()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_physical_reservoir() {
+        let mut reservoir = PhysicalReservoir::new(1, 4);
+        let teaching_input = vec![
+            vec![1.0, 2.0, 3.0, 4.0],
+            vec![2.0, 3.0, 4.0, 5.0],
+            vec![3.0, 4.0, 5.0, 6.0],
+            vec![4.0, 5.0, 6.0, 7.0],
+            vec![5.0, 6.0, 7.0, 8.0],
+        ];
+        let teaching_output = vec![vec![2.5], vec![3.5], vec![4.5], vec![5.5], vec![6.5]];
+
+        reservoir.offline_train(&teaching_input, &teaching_output);
+        let input = vec![0.0, 1.0, 2.0, 3.0];
+        let output = reservoir.estimate(&input);
+        println!("{:?}", reservoir.readout_weight());
+        println!("{:?}", output);
+        todo!("Complete the test");
     }
 }
