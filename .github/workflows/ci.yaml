@@ -35,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: tools/install_ubuntu_dependencies.sh
+        if: startsWith(matrix.os, 'ubuntu')
       - run: cargo build
 
   test:
@@ -47,6 +49,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: tools/install_ubuntu_dependencies.sh
+        if: startsWith(matrix.os, 'ubuntu')
       - run: cargo test --all-features
 
   fmt:
