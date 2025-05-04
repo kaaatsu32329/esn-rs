@@ -44,8 +44,9 @@ impl ReservoirComputing for PhysicalReservoir {
         }
         let x = na::DVector::from_vec(teaching_input.to_vec());
         let d = na::DVector::from_vec(teaching_output.to_vec());
-        self.rls.as_mut().unwrap().set_data(&x, &d);
-        let weight = self.rls.as_mut().unwrap().fit();
+        let rls = self.rls.as_mut().unwrap();
+        rls.set_data(&x, &d);
+        let weight = rls.fit();
         self.output.set_weight(weight);
     }
 
@@ -54,13 +55,14 @@ impl ReservoirComputing for PhysicalReservoir {
             panic!("Ridge is not initialized");
         }
 
+        let ridge = self.ridge.as_mut().unwrap();
         for (input, output) in teaching_input.iter().zip(teaching_output.iter()) {
             let x = na::DVector::from_vec(input.clone());
             let d = na::DVector::from_vec(output.clone());
-            self.ridge.as_mut().unwrap().set_data(&x, &d);
+            ridge.set_data(&x, &d);
         }
 
-        let weight = self.ridge.as_mut().unwrap().fit();
+        let weight = ridge.fit();
         self.output.set_weight(weight);
     }
 
@@ -88,7 +90,7 @@ mod tests {
 
         let input = vec![5.0, 6.0];
         let output = reservoir.estimate(&input);
-        let expected_output = vec![5.5];
-        assert_approx_eq!(output[0], expected_output[0]);
+        let expected_output = 5.5;
+        assert_approx_eq!(output[0], expected_output);
     }
 }
