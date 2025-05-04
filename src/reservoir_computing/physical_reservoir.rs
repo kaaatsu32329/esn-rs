@@ -76,24 +76,19 @@ impl ReservoirComputing for PhysicalReservoir {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_approx_eq::assert_approx_eq;
 
     #[test]
     fn test_physical_reservoir() {
-        let mut reservoir = PhysicalReservoir::new(1, 4);
-        let teaching_input = vec![
-            vec![1.0, 2.0, 3.0, 4.0],
-            vec![2.0, 3.0, 4.0, 5.0],
-            vec![3.0, 4.0, 5.0, 6.0],
-            vec![4.0, 5.0, 6.0, 7.0],
-            vec![5.0, 6.0, 7.0, 8.0],
-        ];
-        let teaching_output = vec![vec![2.5], vec![3.5], vec![4.5], vec![5.5], vec![6.5]];
+        let mut reservoir = PhysicalReservoir::new_with_param(1, 2, (0.0, 0.0), 0.0);
+        let teaching_input = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
+        let teaching_output = vec![vec![1.5], vec![3.5]];
 
         reservoir.offline_train(&teaching_input, &teaching_output);
-        let input = vec![0.0, 1.0, 2.0, 3.0];
+
+        let input = vec![5.0, 6.0];
         let output = reservoir.estimate(&input);
-        println!("{:?}", reservoir.readout_weight());
-        println!("{:?}", output);
-        todo!("Complete the test");
+        let expected_output = vec![5.5];
+        assert_approx_eq!(output[0], expected_output[0]);
     }
 }
